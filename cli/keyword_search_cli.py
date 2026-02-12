@@ -43,7 +43,6 @@ def main() -> None:
             index = InvertedIndex(docs)
             index.build()
             index.save()
-            print(f"First document for token 'merida' = {index.get_documents("merida")[0]}")
         case _:
             parser.print_help()
 
