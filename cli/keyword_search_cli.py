@@ -4,7 +4,10 @@ import argparse
 import json
 import string
 
+from nltk.stem import PorterStemmer
 
+
+stemmer = PorterStemmer()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -46,14 +49,15 @@ def transform_text(input:str,stopwords:list[str]) ->list[str]:
     for token in output:
         if token not in stopwords:
             filtered_output.append(token)
-    return filtered_output
+    
+    stem_output = []
+    for token in filtered_output:
+        stem_output.append(stemmer.stem(token))
+    return stem_output
 
 def has_match(query_tokens, title_tokens):
-    for q in query_tokens:
-        for t in title_tokens:
-            if q in t:
-                return True
-    return False
+    title_set = set(title_tokens)
+    return any(q in title_set for q in query_tokens)
 
 if __name__ == "__main__":
     main()
