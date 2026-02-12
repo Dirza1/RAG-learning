@@ -3,11 +3,16 @@
 import argparse
 import json
 import string
+import pickle
+import os
 
 from nltk.stem import PorterStemmer
+from collections import defaultdict
 
 
 stemmer = PorterStemmer()
+with open("data/stopwords.txt","r") as f:
+       stopwords:list[str] = f.read().splitlines()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -15,11 +20,10 @@ def main() -> None:
 
     search_parser = subparsers.add_parser("search", help="Search movies using BM25")
     search_parser.add_argument("query", type=str, help="Search query")
+    
+    build_parser = subparsers.add_parser("build", help="Build the invertedIndex")
 
     args = parser.parse_args()
-
-    with open("data/stopwords.txt","r") as f:
-       stopwords:list[str] = f.read().splitlines()
 
     match args.command:
         case "search":
@@ -34,6 +38,12 @@ def main() -> None:
             results.sort(key=lambda movie:movie["id"])
             for i, movie in enumerate(results[:5],1):
                 print(f"{i}. {movie['title']}")
+        case "build":
+            docs:dict = load_movies()
+            index = InvertedIndex(docs)
+            index.build()
+            index.save()
+            print(f"First document for token 'merida' = {index.get_documents("merida")[0]}")
         case _:
             parser.print_help()
 
@@ -58,6 +68,47 @@ def transform_text(input:str,stopwords:list[str]) ->list[str]:
 def has_match(query_tokens, title_tokens):
     title_set = set(title_tokens)
     return any(q in title_set for q in query_tokens)
+
+class InvertedIndex():
+    def __init__(self,docs) -> None:
+        self.docs = docs
+        self.index:defaultdict[str,set[int]] = defaultdict(set)
+        self.docmap:defaultdict = defaultdict()
+
+    def __add_document(self,doc_id:int, text:str) -> None:
+        token_text:list[str] = transform_text(text,stopwords)
+        for token in token_text:
+            self.index[token].add(doc_id)
+    
+    def get_documents(self, term: str) -> list[int]:
+        # Transform the search term using the same logic as the indexing
+        transformed = transform_text(term, stopwords)
+        if not transformed:
+            return []
+    
+        # Use the first (and likely only) token from the transformation
+        search_token = transformed[0]
+        
+        # Use .get() to avoid creating empty entries in your defaultdict
+        doc_ids = self.index.get(search_token, set())
+        return sorted(list(doc_ids))
+        
+    
+    def build(self) -> None:
+
+        for movie in self.docs["movies"]:
+            self.__add_document(movie["id"],f"{movie["title"]} {movie["description"]}")
+            self.docmap[movie["id"]] = movie
+    
+    def save(self) -> None:
+        if not os.path.exists("cache/"):
+            os.makedirs("cache/")
+        with open("cache/index.pkl","wb") as f:
+            pickle.dump(self.index,f)
+        with open("cache/docmap.pkl","wb") as f:
+            pickle.dump(self.docmap,f)
+        
+
 
 if __name__ == "__main__":
     main()
