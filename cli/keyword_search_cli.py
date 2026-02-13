@@ -5,9 +5,10 @@ import json
 import string
 import pickle
 import os
+import math
 
 from nltk.stem import PorterStemmer
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 
 stemmer = PorterStemmer()
@@ -23,6 +24,17 @@ def main() -> None:
     
     build_parser = subparsers.add_parser("build", help="Build the invertedIndex")
 
+    tf_parser = subparsers.add_parser("tf",help="Generate token frequency")
+    tf_parser.add_argument("doc_id",help="The docuemnt ID to check")
+    tf_parser.add_argument("term",help="The keyword for wich the counter is to be returned")
+
+    idf_parser = subparsers.add_parser("idf",help="display the inverse index of the argument given")
+    idf_parser.add_argument("term",help="the term to be searched for")
+
+    tfidf_parser = subparsers.add_parser("tfidf",help="Generates a tf-idf score for the term prodivded")
+    tfidf_parser.add_argument("doc_id",help="The ID of the document searched")
+    tfidf_parser.add_argument("term", help="The term to index")
+
     args = parser.parse_args()
     index = InvertedIndex()
 
@@ -36,7 +48,6 @@ def main() -> None:
                 print(e)
                 return
             query:list[str] = transform_text(args.query,stopwords)
-            results:list = []
             for token in query:
                 ids:list[int] = index.get_documents(token)
                 for doc_id in ids:
@@ -51,6 +62,26 @@ def main() -> None:
         case "build":
             index.build()
             index.save()
+        case "tf":
+            try:
+                index.load()
+            except Exception as e:
+                print(e)
+                return
+            print(index.get_tf(int(args.doc_id),args.term))
+        case "idf":
+            token = transform_text(args.term,stopwords)[0]
+            index.load()
+            print(f"Inverse document frequency of '{args.term}': {index.get_idf(token):.2f}")
+            
+        case "tfidf":
+            try:
+                index.load()
+            except Exception as e:
+                print(e)
+                return
+            tf_idf = index.get_tf(int(args.doc_id),args.term) * index.get_idf(args.term)
+            print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
         case _:
             parser.print_help()
 
@@ -80,11 +111,13 @@ class InvertedIndex():
     def __init__(self) -> None:
         self.index:defaultdict[str,set[int]] = defaultdict(set)
         self.docmap:defaultdict = defaultdict()
+        self.term_frequencies:defaultdict[int,Counter] = defaultdict(Counter)
 
     def __add_document(self,doc_id:int, text:str) -> None:
         token_text:list[str] = transform_text(text,stopwords)
         for token in token_text:
             self.index[token].add(doc_id)
+            self.term_frequencies[doc_id][token] += 1
     
     def get_documents(self, term: str) -> list[int]:
         # Transform the search term using the same logic as the indexing
@@ -113,6 +146,8 @@ class InvertedIndex():
             pickle.dump(self.index,f)
         with open("cache/docmap.pkl","wb") as f:
             pickle.dump(self.docmap,f)
+        with open("cache/term_frequencies.pkl","wb") as f:
+            pickle.dump(self.term_frequencies,f)
 
     def load(self) -> None:
         if not os.path.exists("cache/"):
@@ -131,6 +166,25 @@ class InvertedIndex():
         except FileNotFoundError:
             raise FileNotFoundError("Docmap file not avalible")
         
+        try:
+            with open("cache/term_frequencies.pkl","rb") as f:
+                term_frequencies_file = pickle.load(f)
+            self.term_frequencies = term_frequencies_file
+        except FileNotFoundError:
+            raise FileNotFoundError("term_frequencies file not avalible")
+    
+    def get_tf(self,doc_id:int, term:str) -> int:
+        token = transform_text(term,stopwords)
+        if len(token) > 1:
+            raise Exception("To many arguments given to the tf command")
+        
+        return self.term_frequencies[doc_id][token[0]]
+    
+    def get_idf(self,term:str)->float:
+        token = transform_text(term,stopwords)[0]
+        total_docs = len(self.term_frequencies)
+        docs_with_term = self.get_documents(token)
+        return math.log((total_docs+1 ) / (len(docs_with_term) +1))
 
 
 if __name__ == "__main__":
