@@ -24,23 +24,31 @@ def main() -> None:
     build_parser = subparsers.add_parser("build", help="Build the invertedIndex")
 
     args = parser.parse_args()
+    index = InvertedIndex()
 
     match args.command:
         case "search":
             print(f"Searching for: {args.query}")
-            films:dict = load_movies()
             results:list = []
+            try:
+                index.load()
+            except Exception as e:
+                print(e)
+                return
             query:list[str] = transform_text(args.query,stopwords)
-            for movie in films["movies"]:
-                title_token = transform_text(movie["title"],stopwords)
-                if has_match(query,title_token):
-                    results.append(movie)
-            results.sort(key=lambda movie:movie["id"])
-            for i, movie in enumerate(results[:5],1):
-                print(f"{i}. {movie['title']}")
+            results:list = []
+            for token in query:
+                ids:list[int] = index.get_documents(token)
+                for doc_id in ids:
+                    if len(results) >= 5:
+                        break
+                    else:
+                        results.append(f"{index.docmap[doc_id]["id"]}: {index.docmap[doc_id]["title"]}")
+                if len(results) >= 5:
+                    break
+            for result in results:
+                print(result)
         case "build":
-            docs:dict = load_movies()
-            index = InvertedIndex(docs)
             index.build()
             index.save()
         case _:
@@ -69,8 +77,7 @@ def has_match(query_tokens, title_tokens):
     return any(q in title_set for q in query_tokens)
 
 class InvertedIndex():
-    def __init__(self,docs) -> None:
-        self.docs = docs
+    def __init__(self) -> None:
         self.index:defaultdict[str,set[int]] = defaultdict(set)
         self.docmap:defaultdict = defaultdict()
 
@@ -94,8 +101,8 @@ class InvertedIndex():
         
     
     def build(self) -> None:
-
-        for movie in self.docs["movies"]:
+        docs = load_movies()
+        for movie in docs["movies"]:
             self.__add_document(movie["id"],f"{movie["title"]} {movie["description"]}")
             self.docmap[movie["id"]] = movie
     
@@ -106,6 +113,23 @@ class InvertedIndex():
             pickle.dump(self.index,f)
         with open("cache/docmap.pkl","wb") as f:
             pickle.dump(self.docmap,f)
+
+    def load(self) -> None:
+        if not os.path.exists("cache/"):
+            raise NotADirectoryError("The directory 'cache' does not exists. Files needs to be saved before they can be loaded")
+        try:
+            with open("cache/index.pkl","rb") as f:
+                index_file = pickle.load(f)
+            self.index = index_file
+        except FileNotFoundError:
+            raise FileExistsError("index file not avalibe")
+        
+        try:
+            with open("cache/docmap.pkl","rb") as f:
+                docmap_file = pickle.load(f)
+            self.docmap = docmap_file
+        except FileNotFoundError:
+            raise FileNotFoundError("Docmap file not avalible")
         
 
 
