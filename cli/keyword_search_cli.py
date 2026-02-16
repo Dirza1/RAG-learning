@@ -132,6 +132,9 @@ class InvertedIndex():
         tf = self.get_bm25_tf(doc_id,term,BM25_K1,BM25_B)
         idf = self.get_bm25_idf(term)
         return tf * idf
+    
+    def bm25_search(self,query,limit) -> defaultdict:
+        raise NotImplementedError
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
