@@ -35,6 +35,9 @@ def main() -> None:
     tfidf_parser.add_argument("doc_id",help="The ID of the document searched")
     tfidf_parser.add_argument("term", help="The term to index")
 
+    bm25_idf_parser = subparsers.add_parser("bm25idf", help="Get BM25 IDF score for a given term")
+    bm25_idf_parser.add_argument("term", type=str, help="Term to get BM25 IDF score for")
+
     args = parser.parse_args()
     index = InvertedIndex()
 
@@ -82,6 +85,14 @@ def main() -> None:
                 return
             tf_idf = index.get_tf(int(args.doc_id),args.term) * index.get_idf(args.term)
             print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
+        case "bm25idf":
+            try:
+                index.load()
+            except Exception as e:
+                print(e)
+                return
+            bm25_idf:float = index.get_bm25_idf(args.term)
+            print(f"BM25 IDF score of '{args.term}': {bm25_idf:.2f}")
         case _:
             parser.print_help()
 
@@ -186,6 +197,13 @@ class InvertedIndex():
         docs_with_term = self.get_documents(token)
         return math.log((total_docs+1 ) / (len(docs_with_term) +1))
 
+    def get_bm25_idf(self, term:str) -> float:
+        token:list[str] = transform_text(term,stopwords)
+        if len(token) > 1:
+            raise Exception("Input is more then one token")
+        df:int = len(self.get_documents(token[0]))
+        n:int = len(self.term_frequencies)
+        return math.log((n - df + 0.5) / (df +0.5) +1)
 
 if __name__ == "__main__":
     main()
