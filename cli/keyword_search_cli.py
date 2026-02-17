@@ -10,6 +10,7 @@ import math
 from nltk.stem import PorterStemmer
 from collections import defaultdict, Counter
 from constants import BM25_K1, BM25_B
+from itertools import islice
 
 
 stemmer = PorterStemmer()
@@ -133,8 +134,17 @@ class InvertedIndex():
         idf = self.get_bm25_idf(term)
         return tf * idf
     
-    def bm25_search(self,query,limit) -> defaultdict:
-        raise NotImplementedError
+    def bm25_search(self,query,limit) -> dict:
+        tokens:list[str] = transform_text(query,stopwords)
+        scores:defaultdict[int,float] = defaultdict(float)
+        for document in self.docmap:
+            total_score:float = 0.0
+            for token in tokens:
+                bm25_score = self.bm25(document,token)
+                total_score += bm25_score
+            scores[document] = total_score
+        sorted_scores = dict(sorted(scores.items(), key=lambda kv: kv[1], reverse=True))
+        return dict(islice(sorted_scores.items(),limit))
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -167,6 +177,7 @@ def main() -> None:
 
     bm25search_parser = subparsers.add_parser("bm25search", help="Search movies using full BM25 scoring")
     bm25search_parser.add_argument("query", type=str, help="Search query")
+    bm25search_parser.add_argument("limit", type=int,nargs="?",default=5, help="Search query")
 
     args = parser.parse_args()
     index = InvertedIndex()
@@ -213,6 +224,17 @@ def main() -> None:
         case "bm25tf":
             result = bm25tf(args.doc_id,args.term,index,args.k1,args.b)
             print(f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {result:.2f}")
+        case "bm25search":
+            try:
+                index.load()
+            except Exception as e:
+                print(e)
+                return
+            results = index.bm25_search(args.query,args.limit)
+            for doc_id,score in results.items():
+                doc_name = index.docmap[doc_id]["title"]
+                print(f"({doc_id}) {doc_name} - Score: {score:.2f}")
+            
         case _:
             parser.print_help()
 
