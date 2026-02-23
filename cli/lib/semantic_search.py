@@ -4,13 +4,22 @@ import numpy as np
 class SemanticSearch:
     def __init__(self) -> None:
         self.model:SentenceTransformer = SentenceTransformer("all-MiniLM-L6-v2")
+        self.embeddings = None
+        self.documents = None
+        self.documents_map = {}
 
     def generate_embedding(self,text:str):
-        if text.replace(" ","") == "":
+        if text.strip() == "" or not text:
             raise ValueError("Text nly contains white space")
         embedding = self.model.encode([text])[0]
         return embedding
-
+    
+    def build_embeddings(self,documents) -> None:
+        self.documents = documents
+        document_list:list[str] = []
+        for document in documents:
+            self.documents_map[document["id"]] = f"{document["title"]} {document["description"]}"
+            document_list.append(f"{document['title']}: {document['description']}")
 
 def verify_model()->None:
     ss:SemanticSearch = SemanticSearch()
