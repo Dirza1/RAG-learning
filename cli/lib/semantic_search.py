@@ -1,4 +1,5 @@
 from sentence_transformers import SentenceTransformer
+import numpy as np
 
 class SemanticSearch:
     def __init__(self) -> None:
