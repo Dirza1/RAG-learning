@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-from lib.semantic_search import verify_model, SemanticSearch
+from lib.semantic_search import verify_model, SemanticSearch,embed_text
 
 def main():
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -10,11 +10,16 @@ def main():
 
     verify_parser = subparser.add_parser("verify",help="Verify the used model")
 
+    embed_parser = subparser.add_parser("embed_text",help="Embed the text provided")
+    embed_parser.add_argument("text",type=str, help="The text to embed")
+
     args = parser.parse_args()
 
     match args.command:
         case"verify":
             verify_model()
+        case "embed_text":
+            embed_text(args.text)
         case _:
             parser.print_help()
 
