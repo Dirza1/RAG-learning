@@ -59,3 +59,10 @@ def verify_embeddings():
 
     print(f"Number of docs:   {len(documents)}")
     print(f"Embeddings shape: {embeddings.shape[0]} vectors in {embeddings.shape[1]} dimensions")
+
+def embed_query_test(query:str) -> None:
+    ss:SemanticSearch = SemanticSearch()
+    embedding = ss.generate_embedding(query)
+    print(f"Query: {query}")
+    print(f"First 5 dimensions: {embedding[:5]}")
+    print(f"Shape: {embedding.shape}")
