@@ -47,6 +47,17 @@ class SemanticSearch:
             simularity = cosine_similarity(embed_query,embedding)
             simalarity_list.append((simularity,self.documents[index])) #type:ignore
         sorted_sim = sorted(simalarity_list,key=lambda x: x[0],reverse=True)
+        return_list = sorted_sim[:limit]
+        final_return:list[dict] = []
+        for result in return_list:
+            final_return.append({
+                "score" : result[0],
+                "title" : result[1]["title"],
+                "description" : result[1]["description"],
+            })
+        return final_return
+
+        
 
 
 def verify_model()->None:
