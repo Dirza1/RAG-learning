@@ -37,6 +37,16 @@ class SemanticSearch:
             if len(self.embeddings) == len(documents):
                 return self.embeddings
         return self.build_embeddings(documents)
+    
+    def search(self,query,limit):
+        if self.embeddings is None:
+            raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first.")
+        embed_query = self.generate_embedding(query)
+        simalarity_list:list[tuple] = []
+        for index ,embedding in enumerate(self.embeddings):
+            simularity = cosine_similarity(embed_query,embedding)
+            simalarity_list.append((simularity,self.documents[index])) #type:ignore
+        sorted_sim = sorted(simalarity_list,key=lambda x: x[0],reverse=True)
 
 
 def verify_model()->None:
@@ -66,3 +76,13 @@ def embed_query_test(query:str) -> None:
     print(f"Query: {query}")
     print(f"First 5 dimensions: {embedding[:5]}")
     print(f"Shape: {embedding.shape}")
+
+def cosine_similarity(vec1, vec2):
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+
+    return dot_product / (norm1 * norm2)
