@@ -23,6 +23,11 @@ def main():
     search_parser.add_argument("query",type=str,help="The querry to look for")
     search_parser.add_argument("--limit",type=int,default=5,help="The ammount of results to display")
 
+    chunk_parser = subparser.add_parser("chunk",help="Chunk a piece of text based on a limit")
+    chunk_parser.add_argument("text",type=str,help="The text to chunk")
+    chunk_parser.add_argument("--chunk-size",type=int,default=200,help="The chunk size to use")
+    chunk_parser.add_argument("--overlap",type=int,help="amount of overlap")
+
     args = parser.parse_args()
 
     match args.command:
@@ -43,6 +48,19 @@ def main():
             for index,result in enumerate(results):
                 print(f"{index + 1}. {result['title']} (score: {result['score']:.4f})")
                 print(f"{result['description']}")
+        case "chunk":
+            split_text:list[str] = args.text.split()
+            limit = args.chunk_size
+            overlap = args.overlap
+            print(f"Chunking {len(args.text)} characters")
+            count:int = 1
+            while True:
+                if len(split_text) <= limit:
+                    print(f"{count}. {' '.join(split_text)}")
+                    break
+                print(f"{count}. {' '.join(split_text[:limit])}")
+                split_text = split_text[limit - overlap:]
+                count += 1
         case _:
             parser.print_help()
 
