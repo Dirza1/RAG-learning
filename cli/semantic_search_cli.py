@@ -3,6 +3,7 @@
 import argparse
 import json
 from lib.semantic_search import verify_model, SemanticSearch,embed_text,verify_embeddings,embed_query_test
+import regex as re
 
 def main():
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -27,6 +28,11 @@ def main():
     chunk_parser.add_argument("text",type=str,help="The text to chunk")
     chunk_parser.add_argument("--chunk-size",type=int,default=200,help="The chunk size to use")
     chunk_parser.add_argument("--overlap",type=int,help="amount of overlap")
+
+    semantic_chunk_parser = subparser.add_parser("semantic_chunk",help="Semanticaly chunk text")
+    semantic_chunk_parser.add_argument("text",type=str,help="Text to semanticaly chunk")
+    semantic_chunk_parser.add_argument("--max-chunk-size",type=int,default=4,help="How many chunks to make")
+    semantic_chunk_parser.add_argument("--overlap",type=int,default=0,help="The ammount of overlap to use")
 
     args = parser.parse_args()
 
@@ -61,6 +67,19 @@ def main():
                 print(f"{count}. {' '.join(split_text[:limit])}")
                 split_text = split_text[limit - overlap:]
                 count += 1
+        case "semantic_chunk":
+            text:list[str] = re.split(pattern=r"(?<=[.!?])\s+",string=args.text)
+            max_size = args.max_chunk_size
+            overlap = args.overlap
+            print(f"Semantically chunking {len(args.text)} characters")
+            count = 1
+            while True:
+                if len(text) <= max_size:
+                    print(f"{count}. {' '.join(text)}")
+                    break
+                print(f"{count}. {' '.join(text[:max_size])}")
+                text = text[max_size-overlap:]
+                count +=1
         case _:
             parser.print_help()
 
