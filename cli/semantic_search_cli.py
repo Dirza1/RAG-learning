@@ -55,6 +55,7 @@ def main():
                 print(f"{index + 1}. {result['title']} (score: {result['score']:.4f})")
                 print(f"{result['description']}")
         case "chunk":
+            
             split_text:list[str] = args.text.split()
             limit = args.chunk_size
             overlap = args.overlap
@@ -71,17 +72,25 @@ def main():
             text:list[str] = re.split(pattern=r"(?<=[.!?])\s+",string=args.text)
             max_size = args.max_chunk_size
             overlap = args.overlap
+            result = semantic_chunking(text,max_size,overlap)
             print(f"Semantically chunking {len(args.text)} characters")
             count = 1
-            while True:
-                if len(text) <= max_size:
-                    print(f"{count}. {' '.join(text)}")
-                    break
-                print(f"{count}. {' '.join(text[:max_size])}")
-                text = text[max_size-overlap:]
-                count +=1
+            for itm in result:
+                print(f"{count}. {itm}")
+            
         case _:
             parser.print_help()
+
+def semantic_chunking(text,limit,overlap)-> list[str]:
+    results = []
+    while True:
+        if len(text) <= limit:
+            results.append(f"{' '.join(text)}")
+            return results
+
+        results.append(f"{' '.join(text[:limit])}")
+        text = text[limit-overlap:]
+
 
 if __name__ == "__main__":
     main()

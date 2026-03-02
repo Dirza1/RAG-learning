@@ -1,5 +1,7 @@
 from sentence_transformers import SentenceTransformer
+from semantic_search_cli import semantic_chunking
 import numpy as np
+import regex as re
 
 import os
 import json
@@ -69,8 +71,27 @@ class ChunkedSemanticSearch(SemanticSearch):
         for document in documents:
             self.document_map[document['id']] = document
 
-        chunks:list[str] = []
-        metadata_chunks:dict = {}
+        chunks_list:list[str] = []
+        metadata_chunks:list[dict] = []
+
+        for doc_idx, document in enumerate(documents):
+            if document['description'].strip() == "":
+                continue
+            chunks = semantic_chunking(re.split(pattern=r"(?<=[.!?])\s+",string=document['description']),4,1)
+            for idx, chunk in enumerate(chunks):
+                chunks_list.append(chunk)
+                metadata_chunks.append({
+                    "movie_idx":doc_idx,
+                    "chunk_idx":idx,
+                    "total_chunks":len(chunks),
+                })
+
+        self.chunk_embeddings = self.model.encode(chunks_list)
+        self.chunk_metadata = metadata_chunks
+        np.save("cache/chunk_embeddings.npy",self.chunk_embeddings)
+        with open("cache/chunk_metadata.json","w") as f:
+            json.dump({"chunks": metadata_chunks, "total_chunks": len(chunks_list)}, f, indent=2)
+        return self.chunk_embeddings
 
 
 def verify_model()->None:
