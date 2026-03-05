@@ -92,6 +92,9 @@ class ChunkedSemanticSearch(SemanticSearch):
         with open("cache/chunk_metadata.json","w") as f:
             json.dump({"chunks": metadata_chunks, "total_chunks": len(chunks_list)}, f, indent=2)
         return self.chunk_embeddings
+    
+    def load_or_create_chunk_embeddings(self,documents:list[dict]):
+        raise NotImplementedError()
 
 
 def verify_model()->None:
