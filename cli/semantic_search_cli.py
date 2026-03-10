@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from lib.semantic_search import verify_model, SemanticSearch,embed_text,verify_embeddings,embed_query_test
+from lib.semantic_search import verify_model, SemanticSearch,embed_text,verify_embeddings,embed_query_test,ChunkedSemanticSearch
 import regex as re
 
 def main():
@@ -33,6 +33,12 @@ def main():
     semantic_chunk_parser.add_argument("text",type=str,help="Text to semanticaly chunk")
     semantic_chunk_parser.add_argument("--max-chunk-size",type=int,default=4,help="How many chunks to make")
     semantic_chunk_parser.add_argument("--overlap",type=int,default=0,help="The ammount of overlap to use")
+
+    embed_chunks_parser = subparser.add_parser("embed_chunks",help="chunk and encode the dataset")
+
+    search_chunked_parser = subparser.add_parser("search_chunked",help="Sreach the supplied querry in the chunk embeddings")
+    search_chunked_parser.add_argument("query",type=str,help="The querry to look for")
+    search_chunked_parser.add_argument("--limit",type=int,default=5,help="The ammount of movies te return")
 
     args = parser.parse_args()
 
@@ -77,7 +83,22 @@ def main():
             count = 1
             for itm in result:
                 print(f"{count}. {itm}")
-            
+        case "embed_chunks":
+            css:ChunkedSemanticSearch = ChunkedSemanticSearch()
+            with open("data/movies.json","r") as file:
+                documents = json.load(file)['movies']
+            embeddings = css.load_or_create_chunk_embeddings(documents=documents)
+            print(f"Generated {len(embeddings)} chunked embeddings")
+        case "search_chunked":
+            css:ChunkedSemanticSearch = ChunkedSemanticSearch()
+            with open("data/movies.json","r") as file:
+                documents = json.load(file)['movies']
+            css.load_or_create_chunk_embeddings(documents)
+            results = css.search_chunks(args.query,args.limit)
+            for i,document in enumerate(results):
+                print(f"\n{i+1}. {document['title']} (score: {document['score']:.4f})")
+                print(f"   {document}...")
+
         case _:
             parser.print_help()
 

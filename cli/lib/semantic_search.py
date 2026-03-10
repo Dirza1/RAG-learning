@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
-from semantic_search_cli import semantic_chunking
 import numpy as np
 import regex as re
+from collections import defaultdict
 
 import os
 import json
@@ -67,6 +67,7 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.chunk_metadata = None
 
     def build_chunk_embeddings(self,documents):
+        self.document_map = {}
         self.documents = documents
         for document in documents:
             self.document_map[document['id']] = document
@@ -86,7 +87,7 @@ class ChunkedSemanticSearch(SemanticSearch):
                     "total_chunks":len(chunks),
                 })
 
-        self.chunk_embeddings = self.model.encode(chunks_list)
+        self.chunk_embeddings = self.model.encode(chunks_list,show_progress_bar=True)
         self.chunk_metadata = metadata_chunks
         np.save("cache/chunk_embeddings.npy",self.chunk_embeddings)
         with open("cache/chunk_metadata.json","w") as f:
@@ -94,7 +95,51 @@ class ChunkedSemanticSearch(SemanticSearch):
         return self.chunk_embeddings
     
     def load_or_create_chunk_embeddings(self,documents:list[dict]):
-        raise NotImplementedError()
+        self.document_map = {}
+        self.documents = documents
+        for document in documents:
+            self.document_map[document['id']] = document
+        if os.path.exists("cache/chunk_embeddings.npy") and os.path.exists("cache/chunk_metadata.json"):
+            self.chunk_embeddings = np.load("cache/chunk_embeddings.npy")
+            with open("cache/chunk_metadata.json","r") as f:
+                chunks = json.load(f)
+            self.chunk_metadata = chunks['chunks']
+            return self.chunk_embeddings
+        return self.build_chunk_embeddings(documents=documents)
+    
+    def search_chunks(self,query:str,limit:int = 10) -> list:
+        embeding_querry = self.generate_embedding(query)
+        chunk_score:list = []
+        for idx, chunk in enumerate(self.chunk_embeddings): #type:ignore
+            simularity = cosine_similarity(embeding_querry,chunk)
+            chunk_score.append(
+                {
+                    "chunk_idx":self.chunk_metadata[idx]["chunk_idx"],#type:ignore
+                    "movie_idx":self.chunk_metadata[idx]["movie_idx"],#type:ignore
+                    "score":simularity
+                }
+            )
+        movie_to_score:defaultdict = defaultdict(float)
+        for chunk in chunk_score:
+            if chunk["movie_idx"] not in movie_to_score:
+                movie_to_score[chunk['movie_idx']] = chunk['score']
+            elif movie_to_score[chunk['movie_idx']] < chunk['score']:
+                movie_to_score[chunk['movie_idx']] = chunk['score']
+        
+        sorted_movies = sorted(movie_to_score.items(), key=lambda item: item[1],reverse=True)[:limit]
+        final_list:list[dict] = []
+        for movie in sorted_movies:
+            doc = self.documents[movie[0]]
+            final_list.append(
+                {
+                    "id": doc['id'],
+                    "title":doc['title'],
+                    "document":doc['description'][:100],
+                    "score":round(movie[1],4),
+                    "metadata":doc.get("metadata",{})
+                }
+            )
+        return final_list
 
 
 def verify_model()->None:
@@ -134,3 +179,13 @@ def cosine_similarity(vec1, vec2):
         return 0.0
 
     return dot_product / (norm1 * norm2)
+
+def semantic_chunking(text,limit,overlap)-> list[str]:
+    results = []
+    while True:
+        if len(text) <= limit:
+            results.append(f"{' '.join(text)}")
+            return results
+
+        results.append(f"{' '.join(text[:limit])}")
+        text = text[limit-overlap:]
