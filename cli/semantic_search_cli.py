@@ -75,7 +75,11 @@ def main():
                 split_text = split_text[limit - overlap:]
                 count += 1
         case "semantic_chunk":
-            text:list[str] = re.split(pattern=r"(?<=[.!?])\s+",string=args.text)
+            split_check = args.text.split()
+            if not split_check or split_check == "":
+                text = []
+            else:
+                text:list[str] = re.split(pattern=r"(?<=[.!?])\s+",string=args.text)
             max_size = args.max_chunk_size
             overlap = args.overlap
             result = semantic_chunking(text,max_size,overlap)
@@ -104,12 +108,14 @@ def main():
 
 def semantic_chunking(text,limit,overlap)-> list[str]:
     results = []
+    if not text:
+        return []
     while True:
         if len(text) <= limit:
-            results.append(f"{' '.join(text)}")
+            results.append(f"{' '.join(text.strip())}")
             return results
 
-        results.append(f"{' '.join(text[:limit])}")
+        results.append(f"{' '.join(text[:limit].strip())}")
         text = text[limit-overlap:]
 
 
