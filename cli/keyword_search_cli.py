@@ -20,6 +20,7 @@ with open("data/stopwords.txt","r") as f:
 class InvertedIndex():
     def __init__(self) -> None:
         self.index:defaultdict[str,set[int]] = defaultdict(set)
+        self.index_path = os.path.join("cache","index.pkl")
         self.docmap:defaultdict = defaultdict()
         self.term_frequencies:defaultdict[int,Counter] = defaultdict(Counter)
         self.doc_length:defaultdict[int,float] = defaultdict(float)
